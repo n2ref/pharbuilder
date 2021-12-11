@@ -114,11 +114,13 @@ try {
     $is_success_build = $pharbuilder->buildPhar();
 
     if ($is_success_build) {
-        echo "Success build! \"{$outfile}\"\n";
+        echo "\e[92mSuccess build!\e[0m" . PHP_EOL;
+
     } else {
-        echo "Error build! \"{$outfile}\"\n";
+        throw new \Exception("Error build! \"{$outfile}\"");
     }
 
 } catch (Exception $e) {
-    echo $e->getMessage() . "\n";
+    echo "\e[91mERROR: " . $e->getMessage() . PHP_EOL .
+        $e->getFile() . ":" .  $e->getLine() .  "\e[0m" . PHP_EOL;
 }

@@ -18,9 +18,10 @@ class PharBuilder {
      * @param string $app
      */
     public function __construct($source, $outfile, $app = '') {
+
         $this->source  = $source;
         $this->outfile = $outfile;
-        $this->app     = $app ? $app : basename($outfile);
+        $this->app     = $app ?: basename($outfile);
     }
 
 
@@ -51,6 +52,7 @@ class PharBuilder {
     /**
      * Сборка архива
      * @return Phar
+     * @throws Exception
      */
     public function buildPhar() {
 
@@ -63,9 +65,20 @@ class PharBuilder {
             $this->app
         );
 
-        $phar->buildFromDirectory($this->source);
+        if (is_dir($this->source)) {
+            $this->addPharDir($phar, $this->source);
 
-        if ($this->bootstrap) $phar->setStub($this->getStub());
+        } elseif (is_file($this->source)) {
+            $phar->addFile($this->source);
+
+        } else {
+            throw new \Exception('Incorrect source name: File or dir not found');
+        }
+
+
+        if ($this->bootstrap) {
+            $phar->setStub($this->getStub());
+        }
 
         if ($this->compress != Phar::NONE && Phar::canCompress($this->compress)) {
             $phar->compressFiles($this->compress);
@@ -77,10 +90,34 @@ class PharBuilder {
 
 
     /**
+     * Получение списка директорий
+     * @param Phar $phar
+     * @param      $dir
+     */
+    protected function addPharDir(\Phar $phar, $dir) {
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+
+
+        foreach ($iterator as $item) {
+            if ($item instanceof \SplFileInfo) {
+                if ($item->isFile()) {
+                    $local_path = mb_substr($item->getPathname(), mb_strlen($dir));
+                    $phar->addFile($item->getPathname(), $local_path);
+                }
+            }
+        }
+    }
+
+
+    /**
      * Проверка на возможность сборки архива
      * @throws RuntimeException
      */
     protected function verifyCanBuild() {
+
         if (ini_get('phar.readonly')) {
             throw new RuntimeException(
                 'PHP init setting phar.readonly is set to true. Cannot construct phar archives. See '
